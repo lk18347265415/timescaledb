@@ -177,6 +177,7 @@ chunk_dispatch_exec(CustomScanState *node)
 																	  hslot->tuple,
 																	  NULL /*chunk_newtuple */,
 																	  false /*update*/);
+			heap_freetuple(hslot->tuple);
 		}
 	}
 	return slot;
