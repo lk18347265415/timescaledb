@@ -32,6 +32,7 @@ cleanup() {
     set +e # do not exit immediately on failure in cleanup handler
     # docker rm -vf timescaledb-valgrind 2>/dev/null
     docker rm -vf timescaledb-memory 2>/dev/null
+    docker rmi memory_test:latest
     echo "Exit status is $status"
     exit $status
 }
@@ -39,7 +40,7 @@ cleanup() {
 docker_exec() {
     # Echo to stderr
     >&2 echo -e "\033[1m$1\033[0m: $2"
-    docker exec $1 /bin/bash -c "$2"
+    docker exec -t $1 /bin/bash -c "$2"
 }
 
 wait_for_pg() {
@@ -70,11 +71,13 @@ IMAGE_NAME=memory_test TAG_NAME=latest bash ${SCRIPT_DIR}/docker-build.sh
 # is relative and --volume requires an absolute path.
 docker run --env TIMESCALEDB_TELEMETRY=off -d \
        --volume ${BASE_DIR}/scripts:/mnt/scripts \
-       --name timescaledb-memory memory_test:latest
+			 --privileged \
+       --name timescaledb-memory memory_test:latest -c max_wal_size=32GB -c log_checkpoints=on -c checkpoint_timeout=30min -c checkpoint_completion_target=0.9
 wait_for_pg timescaledb-memory
 
 echo "**** Installing python3 and psutil ****"
-docker_exec timescaledb-memory "apk add --no-cache python3 && python3 -m ensurepip && pip3 install --upgrade pip && apk add --update build-base python3-dev py-psutil"
+docker_exec timescaledb-memory "apk add --no-cache python3 && python3 -m ensurepip && pip3 install --upgrade pip --progress-bar off && apk add --update build-base python3-dev py-psutil"
 
 echo "**** Testing ****"
 docker_exec timescaledb-memory "python3 /mnt/scripts/test_memory_spikes.py & sleep 5 && psql -U postgres -d postgres -h localhost -v ECHO=all -X -f /mnt/scripts/out_of_order_random_direct.sql"
+
