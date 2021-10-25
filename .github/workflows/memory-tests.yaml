@@ -1,0 +1,26 @@
+name: Additional tests
+on:
+  schedule:
+    # run daily 20:00 on master branch
+    - cron: '0 20 * * *'
+  push:
+    branches:
+      - prerelease_test
+      - memory_test
+jobs:
+  memory_leak:
+    name: Memory leak on insert
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+    env:
+      PG_VERSION: 14.0
+
+    steps:
+    - name: Checkout TimescaleDB
+      uses: actions/checkout@v2
+
+    - name: Memory test
+      run: |
+        ./scripts/docker-run-memory-test.sh
+
